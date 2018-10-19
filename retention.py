@@ -13,10 +13,11 @@ def descriptionToPolicy(amountOfDaily, amountOfWeekly, amountOfMonthly, amountOf
 
 def currentBackupsOfPolicy(now, policy, sortedObjectsDesc):
     windowIndexToObjectIndex = OrderedDict()  # for each window, the oldest obj
+    extraAmountHack = 0
     for windowType, windowDuration, windowAmount in [
-        ["daily", datetime.timedelta(days=1), policy["amountOfDaily"]+1,],
-        ["weekly", datetime.timedelta(weeks=1), policy["amountOfWeekly"]+1,],
-        ["monthly", datetime.timedelta(weeks=4), policy["amountOfMonthly"]+1,],
+        ["daily", datetime.timedelta(days=1), policy["amountOfDaily"]+extraAmountHack,],
+        ["weekly", datetime.timedelta(weeks=1), policy["amountOfWeekly"]+extraAmountHack,],
+        ["monthly", datetime.timedelta(weeks=4), policy["amountOfMonthly"]+extraAmountHack,],
         ["yearly", datetime.timedelta(weeks=4*12), policy["amountOfYearly"],],
     ]:
         for windowNumber in range(1, windowAmount+1):

@@ -42,15 +42,17 @@ def currentBackupsOfPolicy(now, policy, sortedObjectsDesc):
                 else:
                     objTime = sortedObjectsDesc[objIndex]["time"]
                     olderObjTime = sortedObjectsDesc[olderObjIndex]["time"]
-                    if objTime >= windowOldestBound and windowOldestBound > olderObjTime:
-                        durationToObjTime = abs(windowOldestBound - objTime)
-                        durationToOlderObjTime = abs(windowOldestBound - olderObjTime)
-                        if durationToObjTime <= durationToOlderObjTime:
-                            windowIndexToObjectIndex[windowIndex] = objIndex
-                            # break
-                        else:
-                            windowIndexToObjectIndex[windowIndex] = olderObjIndex
-                            # break
+                    if objTime >= windowOldestBound > olderObjTime or \
+                       objTime > windowOldestBound >= olderObjTime:
+                        windowIndexToObjectIndex[windowIndex] = objIndex
+                        # durationToObjTime = abs(windowOldestBound - objTime)
+                        # durationToOlderObjTime = abs(windowOldestBound - olderObjTime)
+                        # if durationToObjTime <= durationToOlderObjTime:
+                        #     windowIndexToObjectIndex[windowIndex] = objIndex
+                        #     # break
+                        # else:
+                        #     windowIndexToObjectIndex[windowIndex] = olderObjIndex
+                        #     # break
 
 
 
@@ -77,13 +79,14 @@ def deleteUselessBackups(windowIndexToObjectIndex, now, policy, sortedObjectsDes
             print("now: {}".format(now))
             for index, step in enumerate(dryRun):
                 if index > 15:
-                    print('{:<5} {:<15}: {:^5} ({:^5} {:^5}) {:.>20} {}'.format(
+                    print('{:<5} {:<15}: {:^5} ({:^5} {:^5}) {:.>20} from now. {:.>20} from younger. {}'.format(
                         step[0],
                         str(step[1]["time"]),
                         "✓" if step[2] else "✗✗✗",
                         "✓" if step[3] else "✗✗✗",
                         "✓" if step[4] else "✗✗✗",
                         str(now - step[1]["time"]),
+                        str(dryRun[index-1][1]["time"] - (step[1]["time"] if index-1 > 0 else "")),
                         [windowIndex for windowIndex, objectIndex in windowIndexToObjectIndex.items() if step[0] == objectIndex]
                         ))
             # if str(now) == str(dryRun[16][1]["time"]):

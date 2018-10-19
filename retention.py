@@ -21,7 +21,7 @@ def currentBackupsOfPolicy(now, policy, sortedObjectsDesc):
         ["yearly", datetime.timedelta(weeks=4*12), policy["amountOfYearly"]+extraAmountHack,],
     ]:
         for windowNumber in range(1, windowAmount+1):
-            windowIndex = "{}#{}".format(windowType, windowNumber)
+            windowIndex = "{}#{}".format(windowType, windowNumber-1)
             totalDuration = (windowNumber) * windowDuration
             windowOldestBound = now - totalDuration
             k = 1
@@ -32,8 +32,13 @@ def currentBackupsOfPolicy(now, policy, sortedObjectsDesc):
 
             for objIndex, obj in enumerate(sortedObjectsDesc):
                 objTime = obj["time"]
-                if objTime >= windowOldestBound:
+                # if objTime >= windowOldestBound:
+                if windowOldestBound > objTime:
                     windowIndexToObjectIndex[windowIndex] = objIndex
+                    break
+
+            if sortedObjectsDesc and not windowIndexToObjectIndex.get(windowIndex):
+                windowIndexToObjectIndex[windowIndex] = len(sortedObjectsDesc) - 1
             # for objIndex, olderObjIndex in zip(range(len(sortedObjectsDesc)), range(1, len(sortedObjectsDesc) + 1)):
             #     if objIndex == len(sortedObjectsDesc) - 1:
             #         # objIndex is the last one
@@ -91,7 +96,7 @@ def deleteUselessBackups(windowIndexToObjectIndex, now, policy, sortedObjectsDes
                         ))
             # if str(now) == str(dryRun[16][1]["time"]):
             #     print("stop")
-            pass
+            m = 1
         # if len(sortedObjectsDesc) >= 23:
     if str(now) == "2019-01-09 01:00:00":
         j = 1
@@ -156,7 +161,7 @@ def main():
                                  sortedObjectsDesc, doDryRun=True)
             print('')
 
-        sortedObjectsDesc = deleteUselessBackups(windowIndexToObjectIndex, now, policy, sortedObjectsDesc)
+        sortedObjectsDesc = deleteUselessBackups(windowIndexToObjectIndex, now, policy, sortedObjectsDesc, True)
         # print('')
 
         timeIncrement = datetime.timedelta(hours=1)

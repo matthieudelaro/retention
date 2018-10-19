@@ -43,17 +43,14 @@ def currentBackupsOfPolicy(now, policy, sortedObjectsDesc):
                     objTime = sortedObjectsDesc[objIndex]["time"]
                     olderObjTime = sortedObjectsDesc[olderObjIndex]["time"]
                     if objTime >= windowOldestBound and windowOldestBound > olderObjTime:
-                        windowIndexToObjectIndex[windowIndex] = objIndex
-                        windowIndexToObjectIndex[windowIndex+'bis'] = olderObjIndex
-                        break
-                    #     durationToObjTime = abs(windowOldestBound - objTime)
-                    #     durationToOlderObjTime = abs(windowOldestBound - olderObjTime)
-                    #     if durationToObjTime <= durationToOlderObjTime:
-                    #         windowIndexToObjectIndex[windowIndex] = objIndex
-                    #         # break
-                    #     else:
-                    #         windowIndexToObjectIndex[windowIndex] = olderObjIndex
-                    #         # break
+                        durationToObjTime = abs(windowOldestBound - objTime)
+                        durationToOlderObjTime = abs(windowOldestBound - olderObjTime)
+                        if durationToObjTime <= durationToOlderObjTime:
+                            windowIndexToObjectIndex[windowIndex] = objIndex
+                            # break
+                        else:
+                            windowIndexToObjectIndex[windowIndex] = olderObjIndex
+                            # break
 
 
 
@@ -105,9 +102,7 @@ def inspect(windowIndexToObjectIndex, now, policy, sortedObjectsDesc):
     print("now".ljust(17), now)
     if len(sortedObjectsDesc) >= 1:
         print("Youngest".ljust(10), str(0).ljust(6), sortedObjectsDesc[0]["time"])
-    windowIndexes = list(windowIndexToObjectIndex.keys())
-    windowIndexes = [windowIndex for windowIndex in windowIndexes if "bis" not in windowIndex]
-    for previousWindowIndex, windowIndex in zip([None] + windowIndexes, windowIndexes):
+    for previousWindowIndex, windowIndex in zip([None] + list(windowIndexToObjectIndex.keys()), list(windowIndexToObjectIndex.keys())):
         prevObjIndex = None
         objIndex = None
         if previousWindowIndex:
@@ -122,7 +117,7 @@ def inspect(windowIndexToObjectIndex, now, policy, sortedObjectsDesc):
             if prevObjIndex:
                 prevObjTime = sortedObjectsDesc[prevObjIndex]["time"]
                 timeSinceLastWindow = prevObjTime - objTime
-            print(windowIndex.ljust(15), str(objIndex).ljust(6),
+            print(windowIndex.ljust(10), str(objIndex).ljust(6),
                   objTime,
                   str(now - objTime).ljust(20),
                   str(timeSinceLastWindow).ljust(20))
@@ -150,7 +145,7 @@ def main():
     for i in range(total):
         windowIndexToObjectIndex = currentBackupsOfPolicy(now, policy,
                                                           sortedObjectsDesc)
-        currentUniqueWindowsAmount = [key for key, value in windowIndexToObjectIndex.items() if 'bis' not in key and value < max(windowIndexToObjectIndex.values())]
+        currentUniqueWindowsAmount = [key for key, value in windowIndexToObjectIndex.items() if value < max(windowIndexToObjectIndex.values())]
         # if True or i % (24 * 35) == 0:
         if previousUniqueWindowsAmount != currentUniqueWindowsAmount:
             inspect(windowIndexToObjectIndex, now, policy, sortedObjectsDesc)

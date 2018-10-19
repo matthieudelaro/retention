@@ -21,7 +21,7 @@ def currentBackupsOfPolicy(now, policy, sortedObjectsDesc):
         ["yearly", datetime.timedelta(weeks=4*12), policy["amountOfYearly"]+extraAmountHack,],
     ]:
         for windowNumber in range(1, windowAmount+1):
-            windowIndex = "{}#{}".format(windowType, windowNumber-1)
+            windowIndex = "{}#{}".format(windowType, windowNumber)
             totalDuration = (windowNumber) * windowDuration
             windowOldestBound = now - totalDuration
             k = 1
@@ -32,13 +32,13 @@ def currentBackupsOfPolicy(now, policy, sortedObjectsDesc):
 
             for objIndex, obj in enumerate(sortedObjectsDesc):
                 objTime = obj["time"]
-                # if objTime >= windowOldestBound:
-                if windowOldestBound > objTime:
+                # if windowOldestBound > objTime:
+                if objTime.date() >= windowOldestBound.date():
                     windowIndexToObjectIndex[windowIndex] = objIndex
-                    break
+                    # break
 
-            if sortedObjectsDesc and not windowIndexToObjectIndex.get(windowIndex):
-                windowIndexToObjectIndex[windowIndex] = len(sortedObjectsDesc) - 1
+            # if sortedObjectsDesc and not windowIndexToObjectIndex.get(windowIndex):
+            #     windowIndexToObjectIndex[windowIndex] = len(sortedObjectsDesc) - 1
             # for objIndex, olderObjIndex in zip(range(len(sortedObjectsDesc)), range(1, len(sortedObjectsDesc) + 1)):
             #     if objIndex == len(sortedObjectsDesc) - 1:
             #         # objIndex is the last one
@@ -79,7 +79,7 @@ def deleteUselessBackups(windowIndexToObjectIndex, now, policy, sortedObjectsDes
         if keep:
             newSortedObjectDesc.append(obj)
 
-    if doDryRun:
+    if doDryRun or True:
         if len(sortedObjectsDesc) >= 23:
             print("now: {}".format(now))
             for index, step in enumerate(dryRun):
@@ -161,7 +161,7 @@ def main():
                                  sortedObjectsDesc, doDryRun=True)
             print('')
 
-        sortedObjectsDesc = deleteUselessBackups(windowIndexToObjectIndex, now, policy, sortedObjectsDesc, True)
+        sortedObjectsDesc = deleteUselessBackups(windowIndexToObjectIndex, now, policy, sortedObjectsDesc)
         # print('')
 
         timeIncrement = datetime.timedelta(hours=1)

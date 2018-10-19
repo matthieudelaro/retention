@@ -13,12 +13,12 @@ def descriptionToPolicy(amountOfDaily, amountOfWeekly, amountOfMonthly, amountOf
 
 def currentBackupsOfPolicy(now, policy, sortedObjectsDesc):
     windowIndexToObjectIndex = OrderedDict()  # for each window, the oldest obj
-    extraAmountHack = 0
+    extraAmountHack = 1
     for windowType, windowDuration, windowAmount in [
         ["daily", datetime.timedelta(days=1), policy["amountOfDaily"]+extraAmountHack,],
         ["weekly", datetime.timedelta(weeks=1), policy["amountOfWeekly"]+extraAmountHack,],
         ["monthly", datetime.timedelta(weeks=4), policy["amountOfMonthly"]+extraAmountHack,],
-        ["yearly", datetime.timedelta(weeks=4*12), policy["amountOfYearly"],],
+        ["yearly", datetime.timedelta(weeks=4*12), policy["amountOfYearly"]+extraAmountHack,],
     ]:
         for windowNumber in range(1, windowAmount+1):
             windowIndex = "{}#{}".format(windowType, windowNumber)
@@ -30,29 +30,29 @@ def currentBackupsOfPolicy(now, policy, sortedObjectsDesc):
             #         windowIndexToObjectIndex[windowIndex] = objIndex
             #         break
 
-            # for objIndex, obj in enumerate(sortedObjectsDesc):
-            #     objTime = obj["time"]
-            #     if objTime >= windowOldestBound:
-            #         windowIndexToObjectIndex[windowIndex] = objIndex
-            for objIndex, olderObjIndex in zip(range(len(sortedObjectsDesc)), range(1, len(sortedObjectsDesc) + 1)):
-                if objIndex == len(sortedObjectsDesc) - 1:
-                    # objIndex is the last one
-                    if not windowIndexToObjectIndex.get(windowIndex):
-                        windowIndexToObjectIndex[windowIndex] = objIndex
-                else:
-                    objTime = sortedObjectsDesc[objIndex]["time"]
-                    olderObjTime = sortedObjectsDesc[olderObjIndex]["time"]
-                    if objTime >= windowOldestBound > olderObjTime or \
-                       objTime > windowOldestBound >= olderObjTime:
-                        windowIndexToObjectIndex[windowIndex] = objIndex
-                        # durationToObjTime = abs(windowOldestBound - objTime)
-                        # durationToOlderObjTime = abs(windowOldestBound - olderObjTime)
-                        # if durationToObjTime <= durationToOlderObjTime:
-                        #     windowIndexToObjectIndex[windowIndex] = objIndex
-                        #     # break
-                        # else:
-                        #     windowIndexToObjectIndex[windowIndex] = olderObjIndex
-                        #     # break
+            for objIndex, obj in enumerate(sortedObjectsDesc):
+                objTime = obj["time"]
+                if objTime >= windowOldestBound:
+                    windowIndexToObjectIndex[windowIndex] = objIndex
+            # for objIndex, olderObjIndex in zip(range(len(sortedObjectsDesc)), range(1, len(sortedObjectsDesc) + 1)):
+            #     if objIndex == len(sortedObjectsDesc) - 1:
+            #         # objIndex is the last one
+            #         if not windowIndexToObjectIndex.get(windowIndex):
+            #             windowIndexToObjectIndex[windowIndex] = objIndex
+            #     else:
+            #         objTime = sortedObjectsDesc[objIndex]["time"]
+            #         olderObjTime = sortedObjectsDesc[olderObjIndex]["time"]
+            #         if objTime >= windowOldestBound > olderObjTime or \
+            #            objTime > windowOldestBound >= olderObjTime:
+            #             windowIndexToObjectIndex[windowIndex] = objIndex
+            #             # durationToObjTime = abs(windowOldestBound - objTime)
+            #             # durationToOlderObjTime = abs(windowOldestBound - olderObjTime)
+            #             # if durationToObjTime <= durationToOlderObjTime:
+            #             #     windowIndexToObjectIndex[windowIndex] = objIndex
+            #             #     # break
+            #             # else:
+            #             #     windowIndexToObjectIndex[windowIndex] = olderObjIndex
+            #             #     # break
 
 
 

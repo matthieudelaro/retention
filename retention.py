@@ -97,10 +97,12 @@ def currentBackupsOfPolicy(now, policy, sortedObjectsDesc):
             k = 1
 
             windowObjIndex = -1
-            for objIndex, obj in enumerate(sortedObjectsDesc):
+            for objIndex, obj in enumerate(reversed(sortedObjectsDesc)):
                 objTime = obj["time"]
                 if objTime >= windowOldestBound:
                     windowObjIndex = objIndex
+                    break
+            windowObjIndex = len(sortedObjectsDesc) - 1 - windowObjIndex
             if windowObjIndex < 0:
                 windowObjIndex = len(sortedObjectsDesc) - 1
             windowIndexToObjectIndex[windowIndex] = windowObjIndex

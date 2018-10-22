@@ -2,6 +2,7 @@ import datetime
 from collections import OrderedDict
 from pprint import pprint as pp
 from tqdm import tqdm
+from genVizualisationImage import vizualiseState
 
 
 runIndex = datetime.datetime.now()
@@ -106,7 +107,6 @@ def currentBackupsOfPolicy(now, policy, sortedObjectsDesc):
             if windowObjIndex < 0:
                 windowObjIndex = len(sortedObjectsDesc) - 1
             windowIndexToObjectIndex[windowIndex] = windowObjIndex
-    # windowIndexToObjectIndex = {}
     return windowIndexToObjectIndex
 
 
@@ -147,21 +147,8 @@ def deleteUselessBackups(windowIndexToObjectIndex, now, policy, sortedObjectsDes
             m = 1
         # if len(sortedObjectsDesc) >= 23:
 
-    # typeToColor = {
-    #     'nothing': '1',
-    #     'daily': '2',
-    #     'weekly': '3',
-    #     'monthly': '4',
-    #     'yearly': '5',
-    # }
     # if sortedObjectsDesc and len(sortedObjectsDesc) >= 2 and abs(sortedObjectsDesc[0]["time"] - sortedObjectsDesc[-1]["time"]) > datetime.timedelta(days=1):
-    #     from genVizualisationImage import vizualiseState
-    #     vizualiseState(now, runIndex, stateIndex=now,
-    #                    dates=[obj["time"] for obj in sortedObjectsDesc],
-    #                    data=[
-    #                        typeToColor[([windowIndex for windowIndex, objectIndex in windowIndexToObjectIndex.items() if sortedObjectIndex == objectIndex]+['nothing#0'])[0].split('#')[0]]
-    #                          for sortedObjectIndex, _ in enumerate(sortedObjectsDesc)])
-    #     m = 3
+    #     vizualiseState(runIndex, windowIndexToObjectIndex, now, sortedObjectsDesc)
 
     # if str(now) == "2019-01-09 01:00:00":
     #     j = 1
@@ -209,12 +196,13 @@ def main():
     policy = descriptionToPolicy(7, 4, 12, 10)
 
     sortedObjectsDesc = []
-    now = datetime.datetime(2019, 1, 1)
+    startingPoint = datetime.datetime(2019, 1, 1)
+    now = startingPoint
     expectedOldestObjectTime = None
 
     hoursBetweenEvents = 12
     # total = 24 * 365 * 3
-    total = int((24/hoursBetweenEvents) * 365 * 3)
+    total = int((24/hoursBetweenEvents) * 365 * 12)
     # total = 24 * 3
     # total = 24 * 30
     previousUniqueWindowsAmount = -1
@@ -243,9 +231,14 @@ def main():
             expectedOldestObjectTime = newObj["time"]
         else:
             newObj = {"time": sortedObjectsDesc[0]["time"] + timeIncrement}
+        if expectedOldestObjectTime and now > startingPoint + datetime.timedelta(weeks=52*10):
+            print('Not checking expectedOldestObjectTime anymore')
+            expectedOldestObjectTime = None
         sortedObjectsDesc = [newObj] + sortedObjectsDesc
         now = now + timeIncrement
         # previousUniqueWindowsAmount = currentUniqueWindowsAmount
+
+    vizualiseState(runIndex, windowIndexToObjectIndex, now, sortedObjectsDesc)
 
 
 if __name__ == '__main__':

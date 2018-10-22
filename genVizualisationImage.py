@@ -9,7 +9,26 @@ from PIL import Image, ImageDraw
 vizPathTemplate = 'viz/{runIndex}_{stateIndex}.png'
 
 
-def vizualiseState(now, runIndex, stateIndex, dates, data):
+def vizualiseState(runIndex, windowIndexToObjectIndex, now, sortedObjectsDesc):
+    typeToColor = {
+        'nothing': '1',
+        'daily': '2',
+        'weekly': '3',
+        'monthly': '4',
+        'yearly': '5',
+    }
+    _vizualiseState(now, runIndex, stateIndex=now,
+                   dates=[obj["time"] for obj in sortedObjectsDesc],
+                   data=[
+                       typeToColor[([windowIndex for windowIndex, objectIndex in
+                                     windowIndexToObjectIndex.items() if
+                                     sortedObjectIndex == objectIndex] + [
+                                        'nothing#0'])[0].split('#')[0]]
+                       for sortedObjectIndex, _ in
+                       enumerate(sortedObjectsDesc)])
+
+
+def _vizualiseState(now, runIndex, stateIndex, dates, data):
     doReverse = True
     if doReverse:
         dates = list(reversed(dates))

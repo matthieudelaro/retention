@@ -53,6 +53,7 @@ def vizualiseState(now, runIndex, stateIndex, dates, data):
     H = HEIGHT - (2 * BORDER)
 
 
+    #                              white salmon         red salmon          # red           # blue
     colors = { '0': "lime", '1' : (255,200,200), '2' : (255,100,100), '3' : (255,0,0), '4': (0, 0, 255), '5': (100, 100, 255) }
 
     image = Image.new("RGB", (WIDTH, HEIGHT), "white")

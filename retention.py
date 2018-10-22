@@ -125,6 +125,7 @@ def deleteUselessBackups(windowIndexToObjectIndex, now, policy, sortedObjectsDes
                        data=[
                            typeToColor[([windowIndex for windowIndex, objectIndex in windowIndexToObjectIndex.items() if sortedObjectIndex == objectIndex]+['nothing#0'])[0].split('#')[0]]
                              for sortedObjectIndex, _ in enumerate(sortedObjectsDesc)])
+        m = 3
 
     if str(now) == "2019-01-09 01:00:00":
         j = 1

@@ -1,5 +1,7 @@
 import datetime
 from collections import OrderedDict
+from pprint import pprint as pp
+from tqdm import tqdm
 
 
 runIndex = datetime.datetime.now()
@@ -14,37 +16,75 @@ def descriptionToPolicy(amountOfDaily, amountOfWeekly, amountOfMonthly, amountOf
     }
 
 
+def checkCurrentState(now, policy, sortedObjectsDesc, expectedOldestObjectTime):
+    errors = {}
+    if expectedOldestObjectTime:
+        oldestObject = sortedObjectsDesc[-1]
+        oldestObjectTime = oldestObject["time"]
+        if expectedOldestObjectTime != oldestObjectTime:
+            sentence = \
+                'Expected oldest object ({}) has been removed. ' \
+                'Oldest is {}'.format(expectedOldestObjectTime,
+                                      oldestObjectTime)
+            errors['checkLastObject'] = sentence
+    if not sortedObjectsDesc:
+        return errors
+    amountToKeep = policy["amountOfDaily"] + policy["amountOfWeekly"] + policy[
+        "amountOfMonthly"] + policy["amountOfYearly"] + 24  # hourly
+
+    if len(sortedObjectsDesc) > amountToKeep * 1.20:
+        errors['checkIsDeleting'] = 'Currently {} backups, instead of only {}'.format(len(sortedObjectsDesc), amountToKeep)
+    for windowType, windowDuration, windowAmount in [
+        ["daily", datetime.timedelta(days=1), policy["amountOfDaily"]],
+        ["weekly", datetime.timedelta(weeks=1), policy["amountOfWeekly"]],
+        ["monthly", datetime.timedelta(days=30), policy["amountOfMonthly"]],
+        ["yearly", datetime.timedelta(days=365), policy["amountOfYearly"]],
+    ]:
+        for windowNumber in range(windowAmount):
+            expectationYoungestBound = now - windowDuration * windowNumber
+            expectationOldestBound = now - windowDuration * (windowNumber + 1)
+            found = False
+            for obj in sortedObjectsDesc:
+                if expectationYoungestBound >= obj["time"] >= expectationOldestBound:
+                    found = True
+                    break
+            if not found:
+                errorKey = '{}_{}'.format(windowType, windowNumber)
+                if oldestObjectTime > expectationYoungestBound:
+                    pass
+                else:
+                    sentence = \
+                        'Nothing between {} and {} (oldest object is {})'.format(expectationYoungestBound, expectationOldestBound, oldestObjectTime)
+                    errors[errorKey] = sentence
+    return errors
+
+
 def currentBackupsOfPolicy(now, policy, sortedObjectsDesc):
     windowIndexToObjectIndex = OrderedDict()  # for each window, the oldest obj
-    extraAmountHack = 1
+    if not sortedObjectsDesc:
+        return windowIndexToObjectIndex
+    currentWindowExtraAmount = 1
     # now = datetime.datetime.combine((now - datetime.timedelta(hours=24)).date(), datetime.datetime.min.time())
     for windowType, windowDuration, windowAmount in reversed([
-        ["daily", datetime.timedelta(days=1), policy["amountOfDaily"]+extraAmountHack,],
-        ["weekly", datetime.timedelta(weeks=1), policy["amountOfWeekly"]+extraAmountHack,],
-        ["monthly", datetime.timedelta(weeks=4), policy["amountOfMonthly"]+extraAmountHack,],
-        ["yearly", datetime.timedelta(weeks=4*12), policy["amountOfYearly"]+extraAmountHack,],
+        ["daily", datetime.timedelta(days=1), policy["amountOfDaily"]+currentWindowExtraAmount,],
+        ["weekly", datetime.timedelta(weeks=1), policy["amountOfWeekly"]+currentWindowExtraAmount,],
+        ["monthly", datetime.timedelta(weeks=4), policy["amountOfMonthly"]+currentWindowExtraAmount,],
+        ["yearly", datetime.timedelta(weeks=4*12), policy["amountOfYearly"]+currentWindowExtraAmount,],
     ]):
         windowTypeOldestBound = now - windowDuration * windowAmount
         # look for oldest backup of this window type
         oldestObjIndex = -1
         for objIndex, obj in enumerate(sortedObjectsDesc):
             objTime = obj["time"]
-            # if windowOldestBound > objTime:
-            # if objTime.date() >= windowOldestBound.date():
             if objTime >= windowTypeOldestBound:
                 oldestObjIndex = objIndex
-                # break
         if oldestObjIndex < 0:
-            print('QWERTTYsFSDF')
-            break  # go to next window type. Should Happens only when there is not any object
-        else:
-            print('youpi')
+            raise AssertionError()  # go to next window type. Should Happens only when there is not any object
         windowTypeOldestObjTime = sortedObjectsDesc[oldestObjIndex]["time"]
 
         windowIndex = "{}#{}".format(windowType, windowAmount)
         windowIndexToObjectIndex[windowIndex] = oldestObjIndex
 
-        # if windowTypeOldestObjTime
         windowTypeOldestBound = windowTypeOldestObjTime
 
         for windowNumber in range(1, windowAmount):
@@ -53,62 +93,22 @@ def currentBackupsOfPolicy(now, policy, sortedObjectsDesc):
             # windowYoungestBound = windowTypeOldestBound + totalDuration
             windowOldestBound = windowTypeOldestBound + totalDuration
             k = 1
-            # for objIndex, (obj, nextObj) in enumerate(zip(sortedObjectsDesc + [None], [None] + sortedObjectsDesc)):
-            #     if nextObj and windowOldestBound > nextObj["time"] and obj:
-            #         windowIndexToObjectIndex[windowIndex] = objIndex
-            #         break
 
             windowObjIndex = -1
             for objIndex, obj in enumerate(sortedObjectsDesc):
                 objTime = obj["time"]
-                # if windowOldestBound > objTime:
-                # if objTime.date() >= windowOldestBound.date():
                 if objTime >= windowOldestBound:
                     windowObjIndex = objIndex
-                    # break
-                # if objTime >
             if windowObjIndex < 0:
                 windowObjIndex = len(sortedObjectsDesc) - 1
             windowIndexToObjectIndex[windowIndex] = windowObjIndex
-            # for objIndex, obj in enumerate(reversed(sortedObjectsDesc)):
-            #     objTime = obj["time"]
-            #     # if windowOldestBound > objTime:
-            #     # if objTime.date() >= windowOldestBound.date():
-            #     if windowYoungestBound >= objTime:
-            #         windowIndexToObjectIndex[windowIndex] = objIndex
-            #         # break
-            #     if objTime >
-
-            # if sortedObjectsDesc and not windowIndexToObjectIndex.get(windowIndex):
-            #     windowIndexToObjectIndex[windowIndex] = len(sortedObjectsDesc) - 1
-            # for objIndex, olderObjIndex in zip(range(len(sortedObjectsDesc)), range(1, len(sortedObjectsDesc) + 1)):
-            #     if objIndex == len(sortedObjectsDesc) - 1:
-            #         # objIndex is the last one
-            #         if not windowIndexToObjectIndex.get(windowIndex):
-            #             windowIndexToObjectIndex[windowIndex] = objIndex
-            #     else:
-            #         objTime = sortedObjectsDesc[objIndex]["time"]
-            #         olderObjTime = sortedObjectsDesc[olderObjIndex]["time"]
-            #         if objTime >= windowOldestBound > olderObjTime or \
-            #            objTime > windowOldestBound >= olderObjTime:
-            #             windowIndexToObjectIndex[windowIndex] = objIndex
-            #             # durationToObjTime = abs(windowOldestBound - objTime)
-            #             # durationToOlderObjTime = abs(windowOldestBound - olderObjTime)
-            #             # if durationToObjTime <= durationToOlderObjTime:
-            #             #     windowIndexToObjectIndex[windowIndex] = objIndex
-            #             #     # break
-            #             # else:
-            #             #     windowIndexToObjectIndex[windowIndex] = olderObjIndex
-            #             #     # break
-
-
-
+    # windowIndexToObjectIndex = {}
     return windowIndexToObjectIndex
 
 
 def deleteUselessBackups(windowIndexToObjectIndex, now, policy, sortedObjectsDesc, doDryRun=False):
     requiredObjectIndexes = [objectIndex for _, objectIndex in windowIndexToObjectIndex.items()]
-    youngerRequiredIndex = requiredObjectIndexes[0] if len(requiredObjectIndexes) > 0 else None
+
     requiredObjectIndexes = list(set(requiredObjectIndexes))
     dryRun = []
     newSortedObjectDesc = []
@@ -117,28 +117,23 @@ def deleteUselessBackups(windowIndexToObjectIndex, now, policy, sortedObjectsDes
     amountToKeep = policy["amountOfDaily"] + policy["amountOfWeekly"] + policy["amountOfMonthly"] + policy["amountOfYearly"]
     for objectIndex, obj in enumerate(sortedObjectsDesc):
         objRequiredByAwindow = objectIndex in requiredObjectIndexes
-        # objYoungerThanFirstWindow = (youngerRequiredIndex is None or objectIndex < youngerRequiredIndex)
-        objYoungerThanFirstWindow = (obj["time"] >= now - datetime.timedelta(hours=48))
-        objAboutToBeEvicted = not (objRequiredByAwindow or objYoungerThanFirstWindow)
-        aboutToBeEvicted += 1 if objAboutToBeEvicted else 0
-        objTooYoungToBeEvicted = True if aboutToBeEvicted <= amountToKeep else False
-        keep = objRequiredByAwindow or objYoungerThanFirstWindow  # or objTooYoungToBeEvicted
-        dryRun.append((objectIndex, obj, keep, objRequiredByAwindow, objYoungerThanFirstWindow, objTooYoungToBeEvicted))
+        objYoungerThanOneDay = (obj["time"] >= now - datetime.timedelta(hours=24))
+        keep = objRequiredByAwindow or objYoungerThanOneDay
+        dryRun.append((objectIndex, obj, keep, objRequiredByAwindow, objYoungerThanOneDay))
         if keep:
             newSortedObjectDesc.append(obj)
 
-    if sortedObjectsDesc and (doDryRun or True):
+    if False and sortedObjectsDesc and (doDryRun or False):
         if len(sortedObjectsDesc) >= 2:  # 23:
             print("now: {}".format(now))
             for index, step in enumerate(dryRun):
                 if index >= 2:  # 15:
-                    print('{:<5} {:<15}: {:^5} ({:^5} {:^5} {:^5}) {:.>20} from now. {:.>20} from younger. {}'.format(
+                    print('{:<5} {:<15}: {:^5} ({:^5} {:^5} {:.>20} from now. {:.>20} from younger. {}'.format(
                         step[0],
                         str(step[1]["time"]),
                         "✓" if step[2] else "✗✗✗",
                         "✓" if step[3] else "✗✗✗",
                         "✓" if step[4] else "✗✗✗",
-                        "✓" if step[5] else "✗✗✗",
                         str(now - step[1]["time"]),
                         str(dryRun[index-1][1]["time"] - (step[1]["time"] if index-1 > 0 else "")),
                         [windowIndex for windowIndex, objectIndex in windowIndexToObjectIndex.items() if step[0] == objectIndex]
@@ -148,24 +143,24 @@ def deleteUselessBackups(windowIndexToObjectIndex, now, policy, sortedObjectsDes
             m = 1
         # if len(sortedObjectsDesc) >= 23:
 
-    typeToColor = {
-        'nothing': '1',
-        'daily': '2',
-        'weekly': '3',
-        'monthly': '4',
-        'yearly': '5',
-    }
-    if sortedObjectsDesc and len(sortedObjectsDesc) >= 2 and abs(sortedObjectsDesc[0]["time"] - sortedObjectsDesc[-1]["time"]) > datetime.timedelta(days=1):
-        from genVizualisationImage import vizualiseState
-        vizualiseState(now, runIndex, stateIndex=now,
-                       dates=[obj["time"] for obj in sortedObjectsDesc],
-                       data=[
-                           typeToColor[([windowIndex for windowIndex, objectIndex in windowIndexToObjectIndex.items() if sortedObjectIndex == objectIndex]+['nothing#0'])[0].split('#')[0]]
-                             for sortedObjectIndex, _ in enumerate(sortedObjectsDesc)])
-        m = 3
+    # typeToColor = {
+    #     'nothing': '1',
+    #     'daily': '2',
+    #     'weekly': '3',
+    #     'monthly': '4',
+    #     'yearly': '5',
+    # }
+    # if sortedObjectsDesc and len(sortedObjectsDesc) >= 2 and abs(sortedObjectsDesc[0]["time"] - sortedObjectsDesc[-1]["time"]) > datetime.timedelta(days=1):
+    #     from genVizualisationImage import vizualiseState
+    #     vizualiseState(now, runIndex, stateIndex=now,
+    #                    dates=[obj["time"] for obj in sortedObjectsDesc],
+    #                    data=[
+    #                        typeToColor[([windowIndex for windowIndex, objectIndex in windowIndexToObjectIndex.items() if sortedObjectIndex == objectIndex]+['nothing#0'])[0].split('#')[0]]
+    #                          for sortedObjectIndex, _ in enumerate(sortedObjectsDesc)])
+    #     m = 3
 
-    if str(now) == "2019-01-09 01:00:00":
-        j = 1
+    # if str(now) == "2019-01-09 01:00:00":
+    #     j = 1
 
     return sortedObjectsDesc if doDryRun else newSortedObjectDesc
 
@@ -211,35 +206,42 @@ def main():
 
     sortedObjectsDesc = []
     now = datetime.datetime(2019, 1, 1)
+    expectedOldestObjectTime = None
 
     hoursBetweenEvents = 12
     # total = 24 * 365 * 3
-    total = int((24/12) * 365 * 3)
+    total = int((24/hoursBetweenEvents) * 365 * 3)
     # total = 24 * 3
     # total = 24 * 30
     previousUniqueWindowsAmount = -1
-    for i in range(total):
+    for i in tqdm(range(total)):
         windowIndexToObjectIndex = currentBackupsOfPolicy(now, policy,
                                                           sortedObjectsDesc)
-        currentUniqueWindowsAmount = [key for key, value in windowIndexToObjectIndex.items() if value < max(windowIndexToObjectIndex.values())]
-        # if True or i % (24 * 35) == 0:
-        if previousUniqueWindowsAmount != currentUniqueWindowsAmount:
-            inspect(windowIndexToObjectIndex, now, policy, sortedObjectsDesc)
-            deleteUselessBackups(windowIndexToObjectIndex, now, policy,
-                                 sortedObjectsDesc, doDryRun=True)
-            print('')
+        # currentUniqueWindowsAmount = [key for key, value in windowIndexToObjectIndex.items() if value < max(windowIndexToObjectIndex.values())]
+        # # if True or i % (24 * 35) == 0:
+        # if False and previousUniqueWindowsAmount != currentUniqueWindowsAmount:
+        #     inspect(windowIndexToObjectIndex, now, policy, sortedObjectsDesc)
+        #     deleteUselessBackups(windowIndexToObjectIndex, now, policy,
+        #                          sortedObjectsDesc, doDryRun=True)
+        #     print('')
 
+        # deleteUselessBackups(windowIndexToObjectIndex, now, policy, sortedObjectsDesc, True)
         sortedObjectsDesc = deleteUselessBackups(windowIndexToObjectIndex, now, policy, sortedObjectsDesc)
         # print('')
+        errors = checkCurrentState(now, policy, sortedObjectsDesc, expectedOldestObjectTime)
+        if errors:
+            pp(errors)
+            print(' ')
 
         timeIncrement = datetime.timedelta(hours=hoursBetweenEvents)
         if not sortedObjectsDesc:
             newObj = {"time": now}
+            expectedOldestObjectTime = newObj["time"]
         else:
             newObj = {"time": sortedObjectsDesc[0]["time"] + timeIncrement}
         sortedObjectsDesc = [newObj] + sortedObjectsDesc
         now = now + timeIncrement
-        previousUniqueWindowsAmount = currentUniqueWindowsAmount
+        # previousUniqueWindowsAmount = currentUniqueWindowsAmount
 
 
 if __name__ == '__main__':

@@ -72,12 +72,14 @@ def currentBackupsOfPolicy(now, policy, sortedObjectsDesc):
         ["yearly", datetime.timedelta(weeks=4*12), policy["amountOfYearly"]+currentWindowExtraAmount,],
     ]):
         windowTypeOldestBound = now - windowDuration * windowAmount
-        # look for oldest backup of this window type
+        # look for oldest backup of this window type, beginning from oldest record
         oldestObjIndex = -1
-        for objIndex, obj in enumerate(sortedObjectsDesc):
+        for objIndex, obj in enumerate(reversed(sortedObjectsDesc)):
             objTime = obj["time"]
             if objTime >= windowTypeOldestBound:
                 oldestObjIndex = objIndex
+                break
+        oldestObjIndex = len(sortedObjectsDesc) - 1 - oldestObjIndex  # sortedObjectsDesc has been traversed in reversed order, with reversed index => let's reverse the index
         if oldestObjIndex < 0:
             raise AssertionError()  # go to next window type. Should Happens only when there is not any object
         windowTypeOldestObjTime = sortedObjectsDesc[oldestObjIndex]["time"]

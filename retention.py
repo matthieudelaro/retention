@@ -241,5 +241,37 @@ def main():
     vizualiseState(runIndex, windowIndexToObjectIndex, now, sortedObjectsDesc)
 
 
+    # now, generate 12 years at once, and make the algo run once on it
+    # runIndex += 'AllAtOnce'
+    now = startingPoint
+    expectedOldestObjectTime = None
+    sortedObjectsDesc = []
+    for i in tqdm(range(total)):
+        timeIncrement = datetime.timedelta(hours=hoursBetweenEvents)
+        if not sortedObjectsDesc:
+            newObj = {"time": now}
+            expectedOldestObjectTime = newObj["time"]
+        else:
+            newObj = {"time": sortedObjectsDesc[0]["time"] + timeIncrement}
+        if expectedOldestObjectTime and now > startingPoint + datetime.timedelta(
+                weeks=52 * 10):
+            print('Not checking expectedOldestObjectTime anymore')
+            expectedOldestObjectTime = None
+        sortedObjectsDesc = [newObj] + sortedObjectsDesc
+        now = now + timeIncrement
+    windowIndexToObjectIndex = currentBackupsOfPolicy(now, policy,
+                                                      sortedObjectsDesc)
+    sortedObjectsDesc = deleteUselessBackups(windowIndexToObjectIndex, now,
+                                             policy, sortedObjectsDesc)
+    windowIndexToObjectIndex = currentBackupsOfPolicy(now, policy,
+                                                      sortedObjectsDesc)
+    vizualiseState(str(runIndex)+"AllAtOnce", windowIndexToObjectIndex, now, sortedObjectsDesc)
+    errors = checkCurrentState(now, policy, sortedObjectsDesc,
+                               expectedOldestObjectTime)
+    if errors:
+        pp(errors)
+        print(' ')
+
+
 if __name__ == '__main__':
     main()

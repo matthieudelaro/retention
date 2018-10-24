@@ -19,22 +19,16 @@ def descriptionToPolicy(amountOfDaily, amountOfWeekly, amountOfMonthly, amountOf
 
 def checkCurrentState(now, policy, sortedObjectsDesc, expectedOldestObjectTime):
     errors = {}
-    if expectedOldestObjectTime:
-        oldestObject = sortedObjectsDesc[-1]
-        oldestObjectTime = oldestObject["time"]
-        if expectedOldestObjectTime != oldestObjectTime:
-            sentence = \
-                'Expected oldest object ({}) has been removed. ' \
-                'Oldest is {}'.format(expectedOldestObjectTime,
-                                      oldestObjectTime)
-            errors['checkLastObject'] = sentence
-    if not sortedObjectsDesc:
+    if not sortedObjectsDesc and not expectedOldestObjectTime:
         return errors
+    oldestObject = sortedObjectsDesc[-1]
+    oldestObjectTime = oldestObject["time"]
     amountToKeep = policy["amountOfDaily"] + policy["amountOfWeekly"] + policy[
         "amountOfMonthly"] + policy["amountOfYearly"] + 24  # hourly
 
     if len(sortedObjectsDesc) > amountToKeep * 1.20:
         errors['checkIsDeleting'] = 'Currently {} backups, instead of only {}'.format(len(sortedObjectsDesc), amountToKeep)
+    oldestOfAllExpectationOldestBound = None
     for windowType, windowDuration, windowAmount in [
         ["daily", datetime.timedelta(days=1), policy["amountOfDaily"]],
         ["weekly", datetime.timedelta(weeks=1), policy["amountOfWeekly"]],
@@ -44,6 +38,7 @@ def checkCurrentState(now, policy, sortedObjectsDesc, expectedOldestObjectTime):
         for windowNumber in range(windowAmount):
             expectationYoungestBound = now - windowDuration * windowNumber
             expectationOldestBound = now - windowDuration * (windowNumber + 1)
+
             found = False
             for obj in sortedObjectsDesc:
                 if expectationYoungestBound >= obj["time"] >= expectationOldestBound:
@@ -51,12 +46,24 @@ def checkCurrentState(now, policy, sortedObjectsDesc, expectedOldestObjectTime):
                     break
             if not found:
                 errorKey = '{}_{}'.format(windowType, windowNumber)
-                if oldestObjectTime > expectationYoungestBound:
+                if oldestObjectTime > expectationYoungestBound and expectedOldestObjectTime >= oldestObjectTime:
                     pass
                 else:
                     sentence = \
                         'Nothing between {} and {} (oldest object is {})'.format(expectationYoungestBound, expectationOldestBound, oldestObjectTime)
                     errors[errorKey] = sentence
+
+    # if oldestOfAllExpectationOldestBound is None:
+    #     sentence = \
+    #         'Checker is not working properly'
+    #     errors['checkLastObjectNotWorking'] = sentence
+    # if expectedOldestObjectTime:
+    #     if oldestOfAllExpectationOldestBound > expectedOldestObjectTime:
+    #         sentence = \
+    #             'Expected oldest object ({}) has been removed. ' \
+    #             'Oldest is {}'.format(expectedOldestObjectTime,
+    #                                   oldestObjectTime)
+    #         errors['checkLastObject'] = sentence
     return errors
 
 
@@ -180,7 +187,8 @@ def inspect(windowIndexToObjectIndex, now, policy, sortedObjectsDesc):
 
 
 def main():
-    policy = descriptionToPolicy(7, 4, 12, 10)
+    policyAmountOfYears = 30
+    policy = descriptionToPolicy(7, 4, 12, policyAmountOfYears)
 
 
     # sortedObjectsDesc = []
@@ -234,8 +242,9 @@ def main():
     expectedOldestObjectTime = None
 
     hoursBetweenEvents = 12
+    yearsToTest = 50
     # total = 24 * 365 * 3
-    total = int((24/hoursBetweenEvents) * 365 * 100)
+    total = int((24/hoursBetweenEvents) * 365 * yearsToTest)
     # total = 24 * 3
     # total = 24 * 30
     previousUniqueWindowsAmount = -1
@@ -255,6 +264,7 @@ def main():
         # print('')
         errors = checkCurrentState(now, policy, sortedObjectsDesc, expectedOldestObjectTime)
         if errors:
+            pp('now is {}'.format(now))
             pp(errors)
             print(' ')
 
@@ -264,9 +274,12 @@ def main():
             expectedOldestObjectTime = newObj["time"]
         else:
             newObj = {"time": sortedObjectsDesc[0]["time"] + timeIncrement}
-        if expectedOldestObjectTime and now > startingPoint + datetime.timedelta(weeks=52*10):
-            print('Not checking expectedOldestObjectTime anymore')
-            expectedOldestObjectTime = None
+            expectedOldestObjectTime = now - datetime.timedelta(days=365*policyAmountOfYears)
+            if startingPoint > expectedOldestObjectTime:
+                expectedOldestObjectTime = startingPoint
+        # if expectedOldestObjectTime and now > startingPoint + datetime.timedelta(days=365*yearsToTest):
+        #     print('Not checking expectedOldestObjectTime anymore')
+        #     expectedOldestObjectTime = None
         sortedObjectsDesc = [newObj] + sortedObjectsDesc
         now = now + timeIncrement
         # previousUniqueWindowsAmount = currentUniqueWindowsAmount
@@ -274,36 +287,36 @@ def main():
     vizualiseState(runIndex, windowIndexToObjectIndex, now, sortedObjectsDesc)
 
 
-    # now, generate 12 years at once, and make the algo run once on it
-    # runIndex += 'AllAtOnce'
-    now = startingPoint
-    expectedOldestObjectTime = None
-    sortedObjectsDesc = []
-    for i in tqdm(range(total)):
-        timeIncrement = datetime.timedelta(hours=hoursBetweenEvents)
-        if not sortedObjectsDesc:
-            newObj = {"time": now}
-            expectedOldestObjectTime = newObj["time"]
-        else:
-            newObj = {"time": sortedObjectsDesc[0]["time"] + timeIncrement}
-        if expectedOldestObjectTime and now > startingPoint + datetime.timedelta(
-                weeks=52 * 10):
-            print('Not checking expectedOldestObjectTime anymore')
-            expectedOldestObjectTime = None
-        sortedObjectsDesc = [newObj] + sortedObjectsDesc
-        now = now + timeIncrement
-    windowIndexToObjectIndex = currentBackupsOfPolicy(now, policy,
-                                                      sortedObjectsDesc)
-    sortedObjectsDesc = deleteUselessBackups(windowIndexToObjectIndex, now,
-                                             policy, sortedObjectsDesc)
-    windowIndexToObjectIndex = currentBackupsOfPolicy(now, policy,
-                                                      sortedObjectsDesc)
-    vizualiseState(str(runIndex)+"AllAtOnce", windowIndexToObjectIndex, now, sortedObjectsDesc)
-    errors = checkCurrentState(now, policy, sortedObjectsDesc,
-                               expectedOldestObjectTime)
-    if errors:
-        pp(errors)
-        print(' ')
+    # # now, generate 12 years at once, and make the algo run once on it
+    # # runIndex += 'AllAtOnce'
+    # now = startingPoint
+    # expectedOldestObjectTime = None
+    # sortedObjectsDesc = []
+    # for i in tqdm(range(total)):
+    #     timeIncrement = datetime.timedelta(hours=hoursBetweenEvents)
+    #     if not sortedObjectsDesc:
+    #         newObj = {"time": now}
+    #         expectedOldestObjectTime = newObj["time"]
+    #     else:
+    #         newObj = {"time": sortedObjectsDesc[0]["time"] + timeIncrement}
+    #     if expectedOldestObjectTime and now > startingPoint + datetime.timedelta(
+    #             weeks=52 * 10):
+    #         print('Not checking expectedOldestObjectTime anymore')
+    #         expectedOldestObjectTime = None
+    #     sortedObjectsDesc = [newObj] + sortedObjectsDesc
+    #     now = now + timeIncrement
+    # windowIndexToObjectIndex = currentBackupsOfPolicy(now, policy,
+    #                                                   sortedObjectsDesc)
+    # sortedObjectsDesc = deleteUselessBackups(windowIndexToObjectIndex, now,
+    #                                          policy, sortedObjectsDesc)
+    # windowIndexToObjectIndex = currentBackupsOfPolicy(now, policy,
+    #                                                   sortedObjectsDesc)
+    # vizualiseState(str(runIndex)+"AllAtOnce", windowIndexToObjectIndex, now, sortedObjectsDesc)
+    # errors = checkCurrentState(now, policy, sortedObjectsDesc,
+    #                            expectedOldestObjectTime)
+    # if errors:
+    #     pp(errors)
+    #     print(' ')
 
 
 if __name__ == '__main__':

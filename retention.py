@@ -71,12 +71,11 @@ def currentBackupsOfPolicy(now, policy, sortedObjectsDesc):
     windowIndexToObjectIndex = OrderedDict()  # for each window, the oldest obj
     if not sortedObjectsDesc:
         return windowIndexToObjectIndex
-    currentWindowExtraAmount = 1
-    for windowType, windowDuration,                 windowContractualDuration,      windowAmount in reversed([
-        ["daily",   datetime.timedelta(days=1),     datetime.timedelta(days=1),    policy["amountOfDaily"]+currentWindowExtraAmount,],
-        ["weekly",  datetime.timedelta(weeks=1),    datetime.timedelta(days=7),    policy["amountOfWeekly"]+currentWindowExtraAmount,],
-        ["monthly", datetime.timedelta(weeks=4),    datetime.timedelta(days=30.5), policy["amountOfMonthly"]+currentWindowExtraAmount,],
-        ["yearly",  datetime.timedelta(weeks=4*12), datetime.timedelta(days=365),  policy["amountOfYearly"]+currentWindowExtraAmount,],
+    for windowType, windowDuration,                 windowContractualDuration,     windowAmount in reversed([
+        ["daily",   datetime.timedelta(days=1),     datetime.timedelta(days=1),    policy["amountOfDaily"],],
+        ["weekly",  datetime.timedelta(weeks=1),    datetime.timedelta(days=7),    policy["amountOfWeekly"],],
+        ["monthly", datetime.timedelta(weeks=4),    datetime.timedelta(days=30.5), policy["amountOfMonthly"],],
+        ["yearly",  datetime.timedelta(weeks=4*12), datetime.timedelta(days=365),  policy["amountOfYearly"],],
     ]):
         windowTypeOldestBound = now - windowContractualDuration * windowAmount
         windowNumber = 0
@@ -186,86 +185,26 @@ def inspect(windowIndexToObjectIndex, now, policy, sortedObjectsDesc):
     pass
 
 
-def main():
+def test_nominalEvictAfterEachNewBackup():
     yearsToTest = 12
     policyAmountOfYears = 6
+    hoursBetweenEvents = 12
     if yearsToTest < 2*policyAmountOfYears:
         raise AssertionError()
     policy = descriptionToPolicy(7, 4, 12, policyAmountOfYears)
-
-
-    # sortedObjectsDesc = []
-    # startingPoint = datetime.datetime(2019, 1, 1)
-    # now = startingPoint
-    # sortedObjectsDesc = [
-    #     # {"time": datetime.datetime(2018, 12, 31)},
-    #     # {"time": datetime.datetime(2018, 12, 30)},
-    #     # {"time": datetime.datetime(2018, 12, 29)},
-    #     # #        datetime.datetime(2018, 12, 28) ,  # 28th is missing
-    #     # {"time": datetime.datetime(2018, 12, 27)},
-    #     {"time": datetime.datetime(2018, 12, 31)},
-    #     {"time": datetime.datetime(2018, 12, 24)},
-    #
-    #
-    #     {"time": datetime.datetime(2018, 12, 23)},
-    #     {"time": datetime.datetime(2018, 12, 19)},    # two after
-    #     # {"time": datetime.datetime(2018, 12, 18)},  # one after
-    #     # {"time": datetime.datetime(2018, 12, 17)},  # the missing one
-    #     {"time": datetime.datetime(2018, 12, 16)},  # one before, the one which should be chosen by algo
-    #     # {"time": datetime.datetime(2018, 12, 15)},  # two before
-    #
-    #
-    #     {"time": datetime.datetime(2018, 12, 10)},
-    #     # {"time": datetime.datetime(2018, 12, 16)},  # intead of 10th, there is 16th
-    #     # {"time": datetime.datetime(2018, 12, 11)},  # intead of 10th, there is 11th
-    #     # #        datetime.datetime(2018, 12, 10) ,  # 10th is missing
-    #     # {"time": datetime.datetime(2018, 12,  8)},  # intead of 10th, there is 8th
-    #
-    #     {"time": datetime.datetime(2018, 12,  3)},
-    #     {"time": datetime.datetime(2018, 11,  26)},
-    #     {"time": datetime.datetime(2018, 11,  19)},
-    #     {"time": datetime.datetime(2018, 11,  12)},
-    #     {"time": datetime.datetime(2018, 11,  1)},
-    # ]
-    # windowIndexToObjectIndex = currentBackupsOfPolicy(now, policy,
-    #                                                   sortedObjectsDesc)
-    # vizualiseState(runIndex, windowIndexToObjectIndex, now, sortedObjectsDesc)
-    # sortedObjectsDesc = deleteUselessBackups(windowIndexToObjectIndex, now,
-    #                                          policy, sortedObjectsDesc)
-    # # print('')
-    # errors = checkCurrentState(now, policy, sortedObjectsDesc,
-    #                            datetime.datetime(2018, 11,  1))
-    # if errors:
-    #     pp(errors)
-    #     print(' ')
 
     sortedObjectsDesc = []
     startingPoint = datetime.datetime(2019, 1, 1)
     now = startingPoint
     oldestObjectTimeBeforeEviction = None
 
-    hoursBetweenEvents = 12
-    # total = 24 * 365 * 3
     total = int((24/hoursBetweenEvents) * 365 * yearsToTest)
-    # total = 24 * 3
-    # total = 24 * 30
-    previousUniqueWindowsAmount = -1
     for i in tqdm(range(total)):
         windowIndexToObjectIndex = currentBackupsOfPolicy(now, policy,
                                                           sortedObjectsDesc)
-        # currentUniqueWindowsAmount = [key for key, value in windowIndexToObjectIndex.items() if value < max(windowIndexToObjectIndex.values())]
-        # # if True or i % (24 * 35) == 0:
-        # if False and previousUniqueWindowsAmount != currentUniqueWindowsAmount:
-        #     inspect(windowIndexToObjectIndex, now, policy, sortedObjectsDesc)
-        #     deleteUselessBackups(windowIndexToObjectIndex, now, policy,
-        #                          sortedObjectsDesc, doDryRun=True)
-        #     print('')
-
-        # deleteUselessBackups(windowIndexToObjectIndex, now, policy, sortedObjectsDesc, True)
         if sortedObjectsDesc:
             oldestObjectTimeBeforeEviction = sortedObjectsDesc[-1]["time"]
         sortedObjectsDesc = deleteUselessBackups(windowIndexToObjectIndex, now, policy, sortedObjectsDesc)
-        # print('')
         errors = checkCurrentState(now, policy, sortedObjectsDesc, oldestObjectTimeBeforeEviction)
         if errors:
             pp('now is {}'.format(now))
@@ -275,53 +214,99 @@ def main():
         timeIncrement = datetime.timedelta(hours=hoursBetweenEvents)
         if not sortedObjectsDesc:
             newObj = {"time": now}
-            expectedOldestObjectTime = newObj["time"]
         else:
             newObj = {"time": sortedObjectsDesc[0]["time"] + timeIncrement}
-            # expectedOldestObjectTime = now - datetime.timedelta(days=365*policyAmountOfYears)
-            # if startingPoint > expectedOldestObjectTime:
-            #     expectedOldestObjectTime = startingPoint
-        # if expectedOldestObjectTime and now > startingPoint + datetime.timedelta(days=365*yearsToTest):
-        #     print('Not checking expectedOldestObjectTime anymore')
-        #     expectedOldestObjectTime = None
         sortedObjectsDesc = [newObj] + sortedObjectsDesc
         now = now + timeIncrement
-        # previousUniqueWindowsAmount = currentUniqueWindowsAmount
+    # vizualiseState(runIndex, windowIndexToObjectIndex, now, sortedObjectsDesc)
 
+
+def test_nominalEvictOnlyAtTheEnd():
+    yearsToTest = 12
+    policyAmountOfYears = 6
+    hoursBetweenEvents = 12
+    if yearsToTest < 2*policyAmountOfYears:
+        raise AssertionError()
+    policy = descriptionToPolicy(7, 4, 12, policyAmountOfYears)
+
+    sortedObjectsDesc = []
+    startingPoint = datetime.datetime(2019, 1, 1)
+    now = startingPoint
+    oldestObjectTimeBeforeEviction = None
+
+    total = int((24/hoursBetweenEvents) * 365 * yearsToTest)
+    for i in tqdm(range(total)):
+        if sortedObjectsDesc:
+            oldestObjectTimeBeforeEviction = sortedObjectsDesc[-1]["time"]
+
+        timeIncrement = datetime.timedelta(hours=hoursBetweenEvents)
+        if not sortedObjectsDesc:
+            newObj = {"time": now}
+        else:
+            newObj = {"time": sortedObjectsDesc[0]["time"] + timeIncrement}
+        sortedObjectsDesc = [newObj] + sortedObjectsDesc
+        now = now + timeIncrement
+
+    windowIndexToObjectIndex = currentBackupsOfPolicy(now, policy, sortedObjectsDesc)
+    sortedObjectsDesc = deleteUselessBackups(windowIndexToObjectIndex, now, policy, sortedObjectsDesc)
+    errors = checkCurrentState(now, policy, sortedObjectsDesc, oldestObjectTimeBeforeEviction)
+    if errors:
+        pp('now is {}'.format(now))
+        pp(errors)
+        print(' ')
+    # vizualiseState(runIndex, windowIndexToObjectIndex, now, sortedObjectsDesc)
+
+
+def test_missingDayClosestIsOlder():
+    policy = descriptionToPolicy(7, 4, 12, 10)
+    sortedObjectsDesc = []
+    startingPoint = datetime.datetime(2019, 1, 1)
+    now = startingPoint
+    sortedObjectsDesc = [
+        # {"time": datetime.datetime(2018, 12, 31)},
+        # {"time": datetime.datetime(2018, 12, 30)},
+        # {"time": datetime.datetime(2018, 12, 29)},
+        # #        datetime.datetime(2018, 12, 28) ,  # 28th is missing
+        # {"time": datetime.datetime(2018, 12, 27)},
+        {"time": datetime.datetime(2018, 12, 31)},
+        {"time": datetime.datetime(2018, 12, 24)},
+
+
+        {"time": datetime.datetime(2018, 12, 23)},
+        {"time": datetime.datetime(2018, 12, 19)},    # two after
+        # {"time": datetime.datetime(2018, 12, 18)},  # one after
+        # {"time": datetime.datetime(2018, 12, 17)},  # the missing one
+        {"time": datetime.datetime(2018, 12, 16)},  # one before, the one which should be chosen by algo
+        # {"time": datetime.datetime(2018, 12, 15)},  # two before
+
+
+        {"time": datetime.datetime(2018, 12, 10)},
+        # {"time": datetime.datetime(2018, 12, 16)},  # intead of 10th, there is 16th
+        # {"time": datetime.datetime(2018, 12, 11)},  # intead of 10th, there is 11th
+        # #        datetime.datetime(2018, 12, 10) ,  # 10th is missing
+        # {"time": datetime.datetime(2018, 12,  8)},  # intead of 10th, there is 8th
+
+        {"time": datetime.datetime(2018, 12,  3)},
+        {"time": datetime.datetime(2018, 11,  26)},
+        {"time": datetime.datetime(2018, 11,  19)},
+        {"time": datetime.datetime(2018, 11,  12)},
+        {"time": datetime.datetime(2018, 11,  1)},
+    ]
+    windowIndexToObjectIndex = currentBackupsOfPolicy(now, policy,
+                                                      sortedObjectsDesc)
     vizualiseState(runIndex, windowIndexToObjectIndex, now, sortedObjectsDesc)
-
-
-    # # now, generate 12 years at once, and make the algo run once on it
-    # # runIndex += 'AllAtOnce'
-    # now = startingPoint
-    # expectedOldestObjectTime = None
-    # sortedObjectsDesc = []
-    # for i in tqdm(range(total)):
-    #     timeIncrement = datetime.timedelta(hours=hoursBetweenEvents)
-    #     if not sortedObjectsDesc:
-    #         newObj = {"time": now}
-    #         expectedOldestObjectTime = newObj["time"]
-    #     else:
-    #         newObj = {"time": sortedObjectsDesc[0]["time"] + timeIncrement}
-    #     if expectedOldestObjectTime and now > startingPoint + datetime.timedelta(
-    #             weeks=52 * 10):
-    #         print('Not checking expectedOldestObjectTime anymore')
-    #         expectedOldestObjectTime = None
-    #     sortedObjectsDesc = [newObj] + sortedObjectsDesc
-    #     now = now + timeIncrement
-    # windowIndexToObjectIndex = currentBackupsOfPolicy(now, policy,
-    #                                                   sortedObjectsDesc)
-    # sortedObjectsDesc = deleteUselessBackups(windowIndexToObjectIndex, now,
-    #                                          policy, sortedObjectsDesc)
-    # windowIndexToObjectIndex = currentBackupsOfPolicy(now, policy,
-    #                                                   sortedObjectsDesc)
-    # vizualiseState(str(runIndex)+"AllAtOnce", windowIndexToObjectIndex, now, sortedObjectsDesc)
-    # errors = checkCurrentState(now, policy, sortedObjectsDesc,
-    #                            expectedOldestObjectTime)
-    # if errors:
-    #     pp(errors)
-    #     print(' ')
+    sortedObjectsDesc = deleteUselessBackups(windowIndexToObjectIndex, now,
+                                             policy, sortedObjectsDesc)
+    # print('')
+    errors = checkCurrentState(now, policy, sortedObjectsDesc,
+                               datetime.datetime(2018, 11,  1))
+    if errors:
+        pp(errors)
+        print(' ')
+    pass
 
 
 if __name__ == '__main__':
-    main()
+    test_nominalEvictOnlyAtTheEnd()
+    # test_missingDayClosestIsOlder()
+    test_nominalEvictAfterEachNewBackup()

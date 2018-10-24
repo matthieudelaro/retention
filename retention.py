@@ -36,8 +36,8 @@ def checkCurrentState(now, policy, sortedObjectsDesc, oldestObjectTimeBeforeEvic
         ["yearly", datetime.timedelta(days=365), policy["amountOfYearly"]],
     ]:
         for windowNumber in range(windowAmount):
-            expectationYoungestBound = now - windowDuration * windowNumber
-            expectationOldestBound = now - windowDuration * (windowNumber + 1)
+            expectationYoungestBound = now - windowDuration * (windowNumber + 1)
+            expectationOldestBound = now - windowDuration * (windowNumber + 2)
 
             found = False
             for obj in sortedObjectsDesc:
@@ -71,11 +71,12 @@ def currentBackupsOfPolicy(now, policy, sortedObjectsDesc):
     windowIndexToObjectIndex = OrderedDict()  # for each window, the oldest obj
     if not sortedObjectsDesc:
         return windowIndexToObjectIndex
+    windowExtraAmount = 1
     for windowType, windowDuration,                 windowContractualDuration,     windowAmount in reversed([
-        ["daily",   datetime.timedelta(days=1),     datetime.timedelta(days=1),    policy["amountOfDaily"],],
-        ["weekly",  datetime.timedelta(weeks=1),    datetime.timedelta(days=7),    policy["amountOfWeekly"],],
-        ["monthly", datetime.timedelta(weeks=4),    datetime.timedelta(days=30.5), policy["amountOfMonthly"],],
-        ["yearly",  datetime.timedelta(weeks=4*12), datetime.timedelta(days=365),  policy["amountOfYearly"],],
+        ["daily",   datetime.timedelta(days=1),     datetime.timedelta(days=1),    policy["amountOfDaily"]+windowExtraAmount if policy["amountOfDaily"] else policy["amountOfDaily"],],
+        ["weekly",  datetime.timedelta(weeks=1),    datetime.timedelta(days=7),    policy["amountOfWeekly"]+windowExtraAmount if policy["amountOfWeekly"] else policy["amountOfWeekly"],],
+        ["monthly", datetime.timedelta(weeks=4),    datetime.timedelta(days=30.5), policy["amountOfMonthly"]+windowExtraAmount if policy["amountOfMonthly"] else policy["amountOfMonthly"],],
+        ["yearly",  datetime.timedelta(weeks=4*12), datetime.timedelta(days=365),  policy["amountOfYearly"]+windowExtraAmount if policy["amountOfYearly"] else policy["amountOfYearly"],],
     ]):
         windowTypeOldestBound = now - windowContractualDuration * windowAmount
         windowNumber = 0
@@ -258,8 +259,7 @@ def test_nominalEvictOnlyAtTheEnd():
 
 
 def test_missingDayClosestIsOlder():
-    policy = descriptionToPolicy(7, 4, 12, 10)
-    sortedObjectsDesc = []
+    policy = descriptionToPolicy(0, 4, 0, 0)
     startingPoint = datetime.datetime(2019, 1, 1)
     now = startingPoint
     sortedObjectsDesc = [
@@ -303,10 +303,89 @@ def test_missingDayClosestIsOlder():
     if errors:
         pp(errors)
         print(' ')
+    if not sortedObjectsDesc == [
+        {"time": datetime.datetime(2018, 12, 31)},
+        {"time": datetime.datetime(2018, 12, 24)},
+
+
+        {"time": datetime.datetime(2018, 12, 23)},
+        # {"time": datetime.datetime(2018, 12, 19)},    # two after
+        # {"time": datetime.datetime(2018, 12, 18)},  # one after
+        # {"time": datetime.datetime(2018, 12, 17)},  # the missing one
+        {"time": datetime.datetime(2018, 12, 16)},  # one before, the one which should be chosen by algo
+        # {"time": datetime.datetime(2018, 12, 15)},  # two before
+
+
+        {"time": datetime.datetime(2018, 12, 10)},
+        # {"time": datetime.datetime(2018, 12, 16)},  # intead of 10th, there is 16th
+        # {"time": datetime.datetime(2018, 12, 11)},  # intead of 10th, there is 11th
+        # #        datetime.datetime(2018, 12, 10) ,  # 10th is missing
+        # {"time": datetime.datetime(2018, 12,  8)},  # intead of 10th, there is 8th
+
+        {"time": datetime.datetime(2018, 12,  3)},
+        {"time": datetime.datetime(2018, 11,  26)},
+        {"time": datetime.datetime(2018, 11,  19)},
+        {"time": datetime.datetime(2018, 11,  12)},
+        {"time": datetime.datetime(2018, 11,  1)},
+    ]:
+        print('not expected result')
+    pass
+
+
+def test_missingDayClosestIsYounger():
+    policy = descriptionToPolicy(0, 4, 0, 0)
+    startingPoint = datetime.datetime(2019, 1, 1)
+    now = startingPoint
+    sortedObjectsDesc = [
+        {"time": datetime.datetime(2018, 12, 31)},
+        {"time": datetime.datetime(2018, 12, 24)},  # very close to next one
+
+
+        {"time": datetime.datetime(2018, 12, 23)},
+        {"time": datetime.datetime(2018, 12, 19)},    # two younger
+        {"time": datetime.datetime(2018, 12, 18)},  # one younger, the one which should be chosen by algo
+        # {"time": datetime.datetime(2018, 12, 17)},  # the missing one
+        # {"time": datetime.datetime(2018, 12, 16)},  # one older
+        {"time": datetime.datetime(2018, 12, 15)},  # two older
+
+
+        {"time": datetime.datetime(2018, 12, 10)},
+        {"time": datetime.datetime(2018, 12,  3)},
+        {"time": datetime.datetime(2018, 11,  26)},
+        {"time": datetime.datetime(2018, 11,  19)},
+        {"time": datetime.datetime(2018, 11,  12)},
+        {"time": datetime.datetime(2018, 11,  1)},
+    ]
+    windowIndexToObjectIndex = currentBackupsOfPolicy(now, policy,
+                                                      sortedObjectsDesc)
+    sortedObjectsDesc = deleteUselessBackups(windowIndexToObjectIndex, now,
+                                             policy, sortedObjectsDesc)
+    errors = checkCurrentState(now, policy, sortedObjectsDesc,
+                               datetime.datetime(2018, 11,  1))
+    if errors:
+        pp(errors)
+        print(' ')
+    if sortedObjectsDesc != [
+        {"time": datetime.datetime(2018, 12, 31)},
+        {"time": datetime.datetime(2018, 12, 24)},
+
+        # {"time": datetime.datetime(2018, 12, 23)}, # very close to next one
+        # {"time": datetime.datetime(2018, 12, 19)},    # two younger
+        {"time": datetime.datetime(2018, 12, 18)},  # one younger, the one which should be chosen by algo
+        # {"time": datetime.datetime(2018, 12, 17)},  # the missing one
+        # {"time": datetime.datetime(2018, 12, 16)},  # one older
+        # {"time": datetime.datetime(2018, 12, 15)},  # two older
+
+        {"time": datetime.datetime(2018, 12, 10)},
+        {"time": datetime.datetime(2018, 12,  3)},
+        # later ones where too old
+    ]:
+        print('no expected result')
     pass
 
 
 if __name__ == '__main__':
-    test_nominalEvictOnlyAtTheEnd()
+    test_missingDayClosestIsYounger()
     # test_missingDayClosestIsOlder()
+    test_nominalEvictOnlyAtTheEnd()
     test_nominalEvictAfterEachNewBackup()

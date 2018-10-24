@@ -263,72 +263,52 @@ def test_missingDayClosestIsOlder():
     startingPoint = datetime.datetime(2019, 1, 1)
     now = startingPoint
     sortedObjectsDesc = [
-        # {"time": datetime.datetime(2018, 12, 31)},
-        # {"time": datetime.datetime(2018, 12, 30)},
-        # {"time": datetime.datetime(2018, 12, 29)},
-        # #        datetime.datetime(2018, 12, 28) ,  # 28th is missing
-        # {"time": datetime.datetime(2018, 12, 27)},
         {"time": datetime.datetime(2018, 12, 31)},
         {"time": datetime.datetime(2018, 12, 24)},
 
 
-        {"time": datetime.datetime(2018, 12, 23)},
-        {"time": datetime.datetime(2018, 12, 19)},    # two after
+        {"time": datetime.datetime(2018, 12, 23)},  # very close to next one
+        # {"time": datetime.datetime(2018, 12, 19)},    # two after
         # {"time": datetime.datetime(2018, 12, 18)},  # one after
         # {"time": datetime.datetime(2018, 12, 17)},  # the missing one
-        {"time": datetime.datetime(2018, 12, 16)},  # one before, the one which should be chosen by algo
+        {"time": datetime.datetime(2018, 12, 16)}, # one before, the one which should be chosen by algo
         # {"time": datetime.datetime(2018, 12, 15)},  # two before
 
 
         {"time": datetime.datetime(2018, 12, 10)},
-        # {"time": datetime.datetime(2018, 12, 16)},  # intead of 10th, there is 16th
-        # {"time": datetime.datetime(2018, 12, 11)},  # intead of 10th, there is 11th
-        # #        datetime.datetime(2018, 12, 10) ,  # 10th is missing
-        # {"time": datetime.datetime(2018, 12,  8)},  # intead of 10th, there is 8th
-
         {"time": datetime.datetime(2018, 12,  3)},
         {"time": datetime.datetime(2018, 11,  26)},
         {"time": datetime.datetime(2018, 11,  19)},
         {"time": datetime.datetime(2018, 11,  12)},
         {"time": datetime.datetime(2018, 11,  1)},
     ]
-    windowIndexToObjectIndex = currentBackupsOfPolicy(now, policy,
-                                                      sortedObjectsDesc)
-    vizualiseState(runIndex, windowIndexToObjectIndex, now, sortedObjectsDesc)
-    sortedObjectsDesc = deleteUselessBackups(windowIndexToObjectIndex, now,
-                                             policy, sortedObjectsDesc)
-    # print('')
-    errors = checkCurrentState(now, policy, sortedObjectsDesc,
-                               datetime.datetime(2018, 11,  1))
-    if errors:
-        pp(errors)
-        print(' ')
-    if not sortedObjectsDesc == [
+    expectedOutput = [
         {"time": datetime.datetime(2018, 12, 31)},
         {"time": datetime.datetime(2018, 12, 24)},
 
-
-        {"time": datetime.datetime(2018, 12, 23)},
+        # {"time": datetime.datetime(2018, 12, 23)}, # very close to next one
         # {"time": datetime.datetime(2018, 12, 19)},    # two after
         # {"time": datetime.datetime(2018, 12, 18)},  # one after
         # {"time": datetime.datetime(2018, 12, 17)},  # the missing one
-        {"time": datetime.datetime(2018, 12, 16)},  # one before, the one which should be chosen by algo
+        {"time": datetime.datetime(2018, 12, 16)}, # one before, the one which should be chosen by algo
         # {"time": datetime.datetime(2018, 12, 15)},  # two before
 
-
         {"time": datetime.datetime(2018, 12, 10)},
-        # {"time": datetime.datetime(2018, 12, 16)},  # intead of 10th, there is 16th
-        # {"time": datetime.datetime(2018, 12, 11)},  # intead of 10th, there is 11th
-        # #        datetime.datetime(2018, 12, 10) ,  # 10th is missing
-        # {"time": datetime.datetime(2018, 12,  8)},  # intead of 10th, there is 8th
-
         {"time": datetime.datetime(2018, 12,  3)},
-        {"time": datetime.datetime(2018, 11,  26)},
-        {"time": datetime.datetime(2018, 11,  19)},
-        {"time": datetime.datetime(2018, 11,  12)},
-        {"time": datetime.datetime(2018, 11,  1)},
-    ]:
-        print('not expected result')
+        # later ones where too old
+    ]
+    oldestObjectTimeBeforeEviction = sortedObjectsDesc[-1]["time"]
+    windowIndexToObjectIndex = currentBackupsOfPolicy(now, policy,
+                                                      sortedObjectsDesc)
+    vizualiseState(runIndex, windowIndexToObjectIndex, now, sortedObjectsDesc, True, False)
+    sortedObjectsDesc = deleteUselessBackups(windowIndexToObjectIndex, now,
+                                             policy, sortedObjectsDesc)
+    if sortedObjectsDesc != expectedOutput:
+        print('no expected result')
+    errors = checkCurrentState(now, policy, sortedObjectsDesc, oldestObjectTimeBeforeEviction)
+    if errors:
+        pp(errors)
+        print(' ')
     pass
 
 
@@ -338,10 +318,10 @@ def test_missingDayClosestIsYounger():
     now = startingPoint
     sortedObjectsDesc = [
         {"time": datetime.datetime(2018, 12, 31)},
-        {"time": datetime.datetime(2018, 12, 24)},  # very close to next one
+        {"time": datetime.datetime(2018, 12, 24)},
 
 
-        {"time": datetime.datetime(2018, 12, 23)},
+        {"time": datetime.datetime(2018, 12, 23)},  # very close to next one
         {"time": datetime.datetime(2018, 12, 19)},    # two younger
         {"time": datetime.datetime(2018, 12, 18)},  # one younger, the one which should be chosen by algo
         # {"time": datetime.datetime(2018, 12, 17)},  # the missing one
@@ -356,12 +336,12 @@ def test_missingDayClosestIsYounger():
         {"time": datetime.datetime(2018, 11,  12)},
         {"time": datetime.datetime(2018, 11,  1)},
     ]
+    oldestObjectTimeBeforeEviction = sortedObjectsDesc[-1]["time"]
     windowIndexToObjectIndex = currentBackupsOfPolicy(now, policy,
                                                       sortedObjectsDesc)
     sortedObjectsDesc = deleteUselessBackups(windowIndexToObjectIndex, now,
                                              policy, sortedObjectsDesc)
-    errors = checkCurrentState(now, policy, sortedObjectsDesc,
-                               datetime.datetime(2018, 11,  1))
+    errors = checkCurrentState(now, policy, sortedObjectsDesc, oldestObjectTimeBeforeEviction)
     if errors:
         pp(errors)
         print(' ')
@@ -386,6 +366,6 @@ def test_missingDayClosestIsYounger():
 
 if __name__ == '__main__':
     test_missingDayClosestIsYounger()
-    # test_missingDayClosestIsOlder()
+    test_missingDayClosestIsOlder()
     test_nominalEvictOnlyAtTheEnd()
     test_nominalEvictAfterEachNewBackup()

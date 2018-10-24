@@ -9,7 +9,7 @@ from PIL import Image, ImageDraw
 vizPathTemplate = 'viz/{runIndex}_{stateIndex}.png'
 
 
-def vizualiseState(runIndex, windowIndexToObjectIndex, now, sortedObjectsDesc):
+def vizualiseState(runIndex, windowIndexToObjectIndex, now, sortedObjectsDesc, show=False, save=True):
     typeToColor = {
         'nothing': '1',
         'daily': '2',
@@ -25,10 +25,11 @@ def vizualiseState(runIndex, windowIndexToObjectIndex, now, sortedObjectsDesc):
                                      sortedObjectIndex == objectIndex] + [
                                         'nothing#0'])[0].split('#')[0]]
                        for sortedObjectIndex, _ in
-                       enumerate(sortedObjectsDesc)])
+                       enumerate(sortedObjectsDesc)],
+                   show=show, save=save)
 
 
-def _vizualiseState(now, runIndex, stateIndex, dates, data):
+def _vizualiseState(now, runIndex, stateIndex, dates, data, show, save):
     doReverse = True
     if doReverse:
         dates = list(reversed(dates))
@@ -127,8 +128,10 @@ def _vizualiseState(now, runIndex, stateIndex, dates, data):
     draw.text((BORDER, H + BORDER + 20), str(min_date.date()), fill="black")
     draw.text((BORDER + W, H + BORDER + 20), str(max_date.date()), fill="black")
 
-    # image.show()
-    path = vizPathTemplate.format(runIndex=runIndex, stateIndex=stateIndex)
-    path = path.replace(' ', '_')
-    image.save(path)
-    print(path)
+    if show:
+        image.show()
+    if save:
+        path = vizPathTemplate.format(runIndex=runIndex, stateIndex=stateIndex)
+        path = path.replace(' ', '_')
+        image.save(path)
+        print(path)

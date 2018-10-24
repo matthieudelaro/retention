@@ -86,16 +86,26 @@ def currentBackupsOfPolicy(now, policy, sortedObjectsDesc):
             windowOldestBound = windowTypeOldestBound + totalDuration
 
             # look for oldest backup of this window type, beginning from oldest record
-            windowObjIndex = -1
-            for objIndex, obj in enumerate(reversed(sortedObjectsDesc)):
+            windowObjIndexReversed = -1
+            for objIndexReversed, obj in enumerate(reversed(sortedObjectsDesc)):
                 objTime = obj["time"]
                 if objTime >= windowOldestBound:
-                    windowObjIndex = objIndex
+                    windowObjIndexReversed = objIndexReversed
+                    # actually, maybe the previous (older) object is closest to the windowOldestBound than objTime is. In this case, we should choose this one instead
+                    # youngerObjIndex = objIndex+1
+                    if windowNumber != 0:
+                        olderObjIndex = (len(sortedObjectsDesc) - 1) - windowObjIndexReversed + 1
+                        if 0 <= olderObjIndex < len(sortedObjectsDesc):
+                            olderObjTime = sortedObjectsDesc[olderObjIndex]["time"]
+                            timedeltaWithYoungerObject = abs(windowOldestBound - objTime)
+                            timedeltaWithOlderObject = abs(windowOldestBound - olderObjTime)
+                            if timedeltaWithYoungerObject > timedeltaWithOlderObject:
+                                windowObjIndexReversed = (len(sortedObjectsDesc) - 1) - olderObjIndex
                     break
-            if windowObjIndex == -1:  # if not object was found for this window, then we are done with this windowType
+            if windowObjIndexReversed == -1:  # if not object was found for this window, then we are done with this windowType
                 break
             else:
-                windowObjIndex = len(sortedObjectsDesc) - 1 - windowObjIndex
+                windowObjIndex = (len(sortedObjectsDesc) - 1) - windowObjIndexReversed
                 windowIndexToObjectIndex[windowIndex] = windowObjIndex
             if windowNumber == 0:  # if this is the first window of this windowType, then we consider it's backup as a reference for this windowType
                 windowTypeOldestObjTime = sortedObjectsDesc[windowObjIndex]["time"]
@@ -300,11 +310,10 @@ def test_missingDayClosestIsOlder():
     oldestObjectTimeBeforeEviction = sortedObjectsDesc[-1]["time"]
     windowIndexToObjectIndex = currentBackupsOfPolicy(now, policy,
                                                       sortedObjectsDesc)
-    vizualiseState(runIndex, windowIndexToObjectIndex, now, sortedObjectsDesc, True, False)
     sortedObjectsDesc = deleteUselessBackups(windowIndexToObjectIndex, now,
                                              policy, sortedObjectsDesc)
     if sortedObjectsDesc != expectedOutput:
-        print('no expected result')
+        print('not expected result')
     errors = checkCurrentState(now, policy, sortedObjectsDesc, oldestObjectTimeBeforeEviction)
     if errors:
         pp(errors)
@@ -360,12 +369,12 @@ def test_missingDayClosestIsYounger():
         {"time": datetime.datetime(2018, 12,  3)},
         # later ones where too old
     ]:
-        print('no expected result')
+        print('not expected result')
     pass
 
 
 if __name__ == '__main__':
-    test_missingDayClosestIsYounger()
     test_missingDayClosestIsOlder()
+    test_missingDayClosestIsYounger()
     test_nominalEvictOnlyAtTheEnd()
     test_nominalEvictAfterEachNewBackup()

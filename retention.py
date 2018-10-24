@@ -17,9 +17,9 @@ def descriptionToPolicy(amountOfDaily, amountOfWeekly, amountOfMonthly, amountOf
     }
 
 
-def checkCurrentState(now, policy, sortedObjectsDesc, expectedOldestObjectTime):
+def checkCurrentState(now, policy, sortedObjectsDesc, oldestObjectTimeBeforeEviction):
     errors = {}
-    if not sortedObjectsDesc and not expectedOldestObjectTime:
+    if not sortedObjectsDesc and not oldestObjectTimeBeforeEviction:
         return errors
     oldestObject = sortedObjectsDesc[-1]
     oldestObjectTime = oldestObject["time"]
@@ -46,7 +46,7 @@ def checkCurrentState(now, policy, sortedObjectsDesc, expectedOldestObjectTime):
                     break
             if not found:
                 errorKey = '{}_{}'.format(windowType, windowNumber)
-                if oldestObjectTime > expectationYoungestBound and expectedOldestObjectTime >= oldestObjectTime:
+                if oldestObjectTime > expectationYoungestBound and not (expectationYoungestBound >= oldestObjectTimeBeforeEviction >= expectationOldestBound):
                     pass
                 else:
                     sentence = \
@@ -187,7 +187,10 @@ def inspect(windowIndexToObjectIndex, now, policy, sortedObjectsDesc):
 
 
 def main():
-    policyAmountOfYears = 30
+    yearsToTest = 12
+    policyAmountOfYears = 6
+    if yearsToTest < 2*policyAmountOfYears:
+        raise AssertionError()
     policy = descriptionToPolicy(7, 4, 12, policyAmountOfYears)
 
 
@@ -239,10 +242,9 @@ def main():
     sortedObjectsDesc = []
     startingPoint = datetime.datetime(2019, 1, 1)
     now = startingPoint
-    expectedOldestObjectTime = None
+    oldestObjectTimeBeforeEviction = None
 
     hoursBetweenEvents = 12
-    yearsToTest = 50
     # total = 24 * 365 * 3
     total = int((24/hoursBetweenEvents) * 365 * yearsToTest)
     # total = 24 * 3
@@ -260,9 +262,11 @@ def main():
         #     print('')
 
         # deleteUselessBackups(windowIndexToObjectIndex, now, policy, sortedObjectsDesc, True)
+        if sortedObjectsDesc:
+            oldestObjectTimeBeforeEviction = sortedObjectsDesc[-1]["time"]
         sortedObjectsDesc = deleteUselessBackups(windowIndexToObjectIndex, now, policy, sortedObjectsDesc)
         # print('')
-        errors = checkCurrentState(now, policy, sortedObjectsDesc, expectedOldestObjectTime)
+        errors = checkCurrentState(now, policy, sortedObjectsDesc, oldestObjectTimeBeforeEviction)
         if errors:
             pp('now is {}'.format(now))
             pp(errors)
@@ -274,9 +278,9 @@ def main():
             expectedOldestObjectTime = newObj["time"]
         else:
             newObj = {"time": sortedObjectsDesc[0]["time"] + timeIncrement}
-            expectedOldestObjectTime = now - datetime.timedelta(days=365*policyAmountOfYears)
-            if startingPoint > expectedOldestObjectTime:
-                expectedOldestObjectTime = startingPoint
+            # expectedOldestObjectTime = now - datetime.timedelta(days=365*policyAmountOfYears)
+            # if startingPoint > expectedOldestObjectTime:
+            #     expectedOldestObjectTime = startingPoint
         # if expectedOldestObjectTime and now > startingPoint + datetime.timedelta(days=365*yearsToTest):
         #     print('Not checking expectedOldestObjectTime anymore')
         #     expectedOldestObjectTime = None

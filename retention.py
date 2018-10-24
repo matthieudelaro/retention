@@ -65,48 +65,35 @@ def currentBackupsOfPolicy(now, policy, sortedObjectsDesc):
     if not sortedObjectsDesc:
         return windowIndexToObjectIndex
     currentWindowExtraAmount = 1
-    # now = datetime.datetime.combine((now - datetime.timedelta(hours=24)).date(), datetime.datetime.min.time())
-    for windowType, windowDuration, windowAmount in reversed([
-        ["daily", datetime.timedelta(days=1), policy["amountOfDaily"]+currentWindowExtraAmount,],
-        ["weekly", datetime.timedelta(weeks=1), policy["amountOfWeekly"]+currentWindowExtraAmount,],
-        ["monthly", datetime.timedelta(weeks=4), policy["amountOfMonthly"]+currentWindowExtraAmount,],
-        ["yearly", datetime.timedelta(weeks=4*12), policy["amountOfYearly"]+currentWindowExtraAmount,],
+    for windowType, windowDuration,                 windowContractualDuration,      windowAmount in reversed([
+        ["daily",   datetime.timedelta(days=1),     datetime.timedelta(days=1),    policy["amountOfDaily"]+currentWindowExtraAmount,],
+        ["weekly",  datetime.timedelta(weeks=1),    datetime.timedelta(days=7),    policy["amountOfWeekly"]+currentWindowExtraAmount,],
+        ["monthly", datetime.timedelta(weeks=4),    datetime.timedelta(days=30.5), policy["amountOfMonthly"]+currentWindowExtraAmount,],
+        ["yearly",  datetime.timedelta(weeks=4*12), datetime.timedelta(days=365),  policy["amountOfYearly"]+currentWindowExtraAmount,],
     ]):
-        windowTypeOldestBound = now - windowDuration * windowAmount
-        # look for oldest backup of this window type, beginning from oldest record
-        oldestObjIndex = -1
-        for objIndex, obj in enumerate(reversed(sortedObjectsDesc)):
-            objTime = obj["time"]
-            if objTime >= windowTypeOldestBound:
-                oldestObjIndex = objIndex
-                break
-        oldestObjIndex = len(sortedObjectsDesc) - 1 - oldestObjIndex  # sortedObjectsDesc has been traversed in reversed order, with reversed index => let's reverse the index
-        if oldestObjIndex < 0:
-            raise AssertionError()  # go to next window type. Should Happens only when there is not any object
-        windowTypeOldestObjTime = sortedObjectsDesc[oldestObjIndex]["time"]
-
-        windowIndex = "{}#{}".format(windowType, windowAmount)
-        windowIndexToObjectIndex[windowIndex] = oldestObjIndex
-
-        windowTypeOldestBound = windowTypeOldestObjTime
-
-        for windowNumber in range(1, windowAmount):
+        windowTypeOldestBound = now - windowContractualDuration * windowAmount
+        windowNumber = 0
+        while True:
             windowIndex = "{}#{}".format(windowType, windowNumber)
             totalDuration = (windowNumber) * windowDuration
-            # windowYoungestBound = windowTypeOldestBound + totalDuration
             windowOldestBound = windowTypeOldestBound + totalDuration
-            k = 1
 
+            # look for oldest backup of this window type, beginning from oldest record
             windowObjIndex = -1
             for objIndex, obj in enumerate(reversed(sortedObjectsDesc)):
                 objTime = obj["time"]
                 if objTime >= windowOldestBound:
                     windowObjIndex = objIndex
                     break
-            windowObjIndex = len(sortedObjectsDesc) - 1 - windowObjIndex
-            if windowObjIndex < 0:
-                windowObjIndex = len(sortedObjectsDesc) - 1
-            windowIndexToObjectIndex[windowIndex] = windowObjIndex
+            if windowObjIndex == -1:  # if not object was found for this window, then we are done with this windowType
+                break
+            else:
+                windowObjIndex = len(sortedObjectsDesc) - 1 - windowObjIndex
+                windowIndexToObjectIndex[windowIndex] = windowObjIndex
+            if windowNumber == 0:  # if this is the first window of this windowType, then we consider it's backup as a reference for this windowType
+                windowTypeOldestObjTime = sortedObjectsDesc[windowObjIndex]["time"]
+                windowTypeOldestBound = windowTypeOldestObjTime
+            windowNumber += 1
     return windowIndexToObjectIndex
 
 
@@ -195,6 +182,52 @@ def inspect(windowIndexToObjectIndex, now, policy, sortedObjectsDesc):
 def main():
     policy = descriptionToPolicy(7, 4, 12, 10)
 
+
+    # sortedObjectsDesc = []
+    # startingPoint = datetime.datetime(2019, 1, 1)
+    # now = startingPoint
+    # sortedObjectsDesc = [
+    #     # {"time": datetime.datetime(2018, 12, 31)},
+    #     # {"time": datetime.datetime(2018, 12, 30)},
+    #     # {"time": datetime.datetime(2018, 12, 29)},
+    #     # #        datetime.datetime(2018, 12, 28) ,  # 28th is missing
+    #     # {"time": datetime.datetime(2018, 12, 27)},
+    #     {"time": datetime.datetime(2018, 12, 31)},
+    #     {"time": datetime.datetime(2018, 12, 24)},
+    #
+    #
+    #     {"time": datetime.datetime(2018, 12, 23)},
+    #     {"time": datetime.datetime(2018, 12, 19)},    # two after
+    #     # {"time": datetime.datetime(2018, 12, 18)},  # one after
+    #     # {"time": datetime.datetime(2018, 12, 17)},  # the missing one
+    #     {"time": datetime.datetime(2018, 12, 16)},  # one before, the one which should be chosen by algo
+    #     # {"time": datetime.datetime(2018, 12, 15)},  # two before
+    #
+    #
+    #     {"time": datetime.datetime(2018, 12, 10)},
+    #     # {"time": datetime.datetime(2018, 12, 16)},  # intead of 10th, there is 16th
+    #     # {"time": datetime.datetime(2018, 12, 11)},  # intead of 10th, there is 11th
+    #     # #        datetime.datetime(2018, 12, 10) ,  # 10th is missing
+    #     # {"time": datetime.datetime(2018, 12,  8)},  # intead of 10th, there is 8th
+    #
+    #     {"time": datetime.datetime(2018, 12,  3)},
+    #     {"time": datetime.datetime(2018, 11,  26)},
+    #     {"time": datetime.datetime(2018, 11,  19)},
+    #     {"time": datetime.datetime(2018, 11,  12)},
+    #     {"time": datetime.datetime(2018, 11,  1)},
+    # ]
+    # windowIndexToObjectIndex = currentBackupsOfPolicy(now, policy,
+    #                                                   sortedObjectsDesc)
+    # vizualiseState(runIndex, windowIndexToObjectIndex, now, sortedObjectsDesc)
+    # sortedObjectsDesc = deleteUselessBackups(windowIndexToObjectIndex, now,
+    #                                          policy, sortedObjectsDesc)
+    # # print('')
+    # errors = checkCurrentState(now, policy, sortedObjectsDesc,
+    #                            datetime.datetime(2018, 11,  1))
+    # if errors:
+    #     pp(errors)
+    #     print(' ')
+
     sortedObjectsDesc = []
     startingPoint = datetime.datetime(2019, 1, 1)
     now = startingPoint
@@ -202,7 +235,7 @@ def main():
 
     hoursBetweenEvents = 12
     # total = 24 * 365 * 3
-    total = int((24/hoursBetweenEvents) * 365 * 12)
+    total = int((24/hoursBetweenEvents) * 365 * 100)
     # total = 24 * 3
     # total = 24 * 30
     previousUniqueWindowsAmount = -1
